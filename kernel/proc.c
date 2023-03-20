@@ -344,9 +344,11 @@ reparent(struct proc *p)
 // An exited process remains in the zombie state
 // until its parent calls wait().
 void
-exit(int status)
+exit(int status, char * msg)
 {
   struct proc *p = myproc();
+
+  strncpy(p->exit_msg, msg, strlen(msg));
 
   if(p == initproc)
     panic("init exiting");

@@ -11,7 +11,9 @@ sys_exit(void)
 {
   int n;
   argint(0, &n);
-  exit(n);
+  char c[32];
+  argstr(1,c,32);
+  exit(n,c);
   return 0;  // not reached
 }
 
