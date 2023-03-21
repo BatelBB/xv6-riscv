@@ -396,7 +396,7 @@ wait(uint64 addr, char * msg)
   int havekids, pid;
   struct proc *p = myproc();
 
-  copyout(p->pagetable, *msg, p->exit_msg, strlen(msg));
+  copyout(p->pagetable, (uint64)msg, p->exit_msg, strlen(msg));
 
   acquire(&wait_lock);
 

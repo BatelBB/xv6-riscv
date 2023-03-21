@@ -96,6 +96,7 @@ runcmd(struct cmd *cmd)
     if(fork1() == 0)
       runcmd(lcmd->left);
     wait(0, wait_msg);
+    printf("%s", wait_msg);
     runcmd(lcmd->right);
     break;
 
