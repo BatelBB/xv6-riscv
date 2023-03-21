@@ -16,6 +16,7 @@ print(const char *s)
 void
 forktest(void)
 {
+  char * wait_msg ="";
   int n, pid;
 
   print("fork test\n");
@@ -34,13 +35,13 @@ forktest(void)
   }
 
   for(; n > 0; n--){
-    if(wait(0) < 0){
+    if(wait(0, wait_msg) < 0){
       print("wait stopped early\n");
       exit(1, "exit_message");
     }
   }
 
-  if(wait(0) != -1){
+  if(wait(0, wait_msg) != -1){
     print("wait got too many\n");
     exit(1, "exit_message");
   }

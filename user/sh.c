@@ -58,6 +58,7 @@ void runcmd(struct cmd*) __attribute__((noreturn));
 void
 runcmd(struct cmd *cmd)
 {
+  char * wait_msg = "";
   int p[2];
   struct backcmd *bcmd;
   struct execcmd *ecmd;
@@ -94,7 +95,7 @@ runcmd(struct cmd *cmd)
     lcmd = (struct listcmd*)cmd;
     if(fork1() == 0)
       runcmd(lcmd->left);
-    wait(0);
+    wait(0, wait_msg);
     runcmd(lcmd->right);
     break;
 
@@ -118,8 +119,8 @@ runcmd(struct cmd *cmd)
     }
     close(p[0]);
     close(p[1]);
-    wait(0);
-    wait(0);
+    wait(0, wait_msg);
+    wait(0, wait_msg);
     break;
 
   case BACK:
@@ -145,6 +146,7 @@ getcmd(char *buf, int nbuf)
 int
 main(void)
 {
+  char * wait_msg = "";
   static char buf[100];
   int fd;
 
@@ -167,7 +169,7 @@ main(void)
     }
     if(fork1() == 0)
       runcmd(parsecmd(buf));
-    wait(0);
+    wait(0, wait_msg);
   }
   exit(0, "exit_message");
 }

@@ -50,6 +50,7 @@ rand(void)
 void
 go(int which_child)
 {
+  char * wait_msg = "";
   int fd = -1;
   static char buf[999];
   char *break0 = sbrk(0);
@@ -112,7 +113,7 @@ go(int which_child)
         printf("grind: fork failed\n");
         exit(1, "exit_message");
       }
-      wait(0);
+      wait(0, wait_msg);
     } else if(what == 14){
       int pid = fork();
       if(pid == 0){
@@ -123,7 +124,7 @@ go(int which_child)
         printf("grind: fork failed\n");
         exit(1, "exit_message");
       }
-      wait(0);
+      wait(0, wait_msg);
     } else if(what == 15){
       sbrk(6011);
     } else if(what == 16){
@@ -143,7 +144,7 @@ go(int which_child)
         exit(1, "exit_message");
       }
       kill(pid);
-      wait(0);
+      wait(0, wait_msg);
     } else if(what == 18){
       int pid = fork();
       if(pid == 0){
@@ -153,7 +154,7 @@ go(int which_child)
         printf("grind: fork failed\n");
         exit(1, "exit_message");
       }
-      wait(0);
+      wait(0, wait_msg);
     } else if(what == 19){
       int fds[2];
       if(pipe(fds) < 0){
@@ -176,7 +177,7 @@ go(int which_child)
       }
       close(fds[0]);
       close(fds[1]);
-      wait(0);
+      wait(0, wait_msg);
     } else if(what == 20){
       int pid = fork();
       if(pid == 0){
@@ -191,7 +192,7 @@ go(int which_child)
         printf("grind: fork failed\n");
         exit(1, "exit_message");
       }
-      wait(0);
+      wait(0, wait_msg);
     } else if(what == 21){
       unlink("c");
       // should always succeed. check that there are free i-nodes,
@@ -283,8 +284,8 @@ go(int which_child)
       read(bb[0], buf+2, 1);
       close(bb[0]);
       int st1, st2;
-      wait(&st1);
-      wait(&st2);
+      wait(&st1, wait_msg);
+      wait(&st2, wait_msg);
       if(st1 != 0 || st2 != 0 || strcmp(buf, "hi\n") != 0){
         printf("grind: exec pipeline failed %d %d \"%s\"\n", st1, st2, buf);
         exit(1, "exit_message");
@@ -296,6 +297,7 @@ go(int which_child)
 void
 iter()
 {
+  char * wait_msg = "";
   unlink("a");
   unlink("b");
   
@@ -322,13 +324,13 @@ iter()
   }
 
   int st1 = -1;
-  wait(&st1);
+  wait(&st1, wait_msg);
   if(st1 != 0){
     kill(pid1);
     kill(pid2);
   }
   int st2 = -1;
-  wait(&st2);
+  wait(&st2, wait_msg);
 
   exit(0, "exit_message");
 }
@@ -336,6 +338,7 @@ iter()
 int
 main()
 {
+  char * wait_msg = "";
   while(1){
     int pid = fork();
     if(pid == 0){
@@ -343,7 +346,7 @@ main()
       exit(0, "exit_message");
     }
     if(pid > 0){
-      wait(0);
+      wait(0, wait_msg);
     }
     sleep(20);
     rand_next += 1;

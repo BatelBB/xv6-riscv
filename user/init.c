@@ -14,6 +14,7 @@ char *argv[] = { "sh", 0 };
 int
 main(void)
 {
+  char * wait_msg = "";
   int pid, wpid;
 
   if(open("console", O_RDWR) < 0){
@@ -39,7 +40,7 @@ main(void)
     for(;;){
       // this call to wait() returns if the shell exits,
       // or if a parentless process exits.
-      wpid = wait((int *) 0);
+      wpid = wait((int *) 0, wait_msg);
       if(wpid == pid){
         // the shell exited; restart it.
         break;
