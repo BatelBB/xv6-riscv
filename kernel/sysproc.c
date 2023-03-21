@@ -34,7 +34,9 @@ sys_wait(void)
 {
   uint64 p;
   argaddr(0, &p);
-  return wait(p);
+  char c[32];
+  argstr(1,c,32);
+  return wait(p, c);
 }
 
 uint64

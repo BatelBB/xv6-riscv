@@ -390,11 +390,13 @@ exit(int status, char * msg)
 // Wait for a child process to exit and return its pid.
 // Return -1 if this process has no children.
 int
-wait(uint64 addr)
+wait(uint64 addr, char * msg)
 {
   struct proc *pp;
   int havekids, pid;
   struct proc *p = myproc();
+
+  copyout(p->pagetable, *msg, p->exit_msg, strlen(msg));
 
   acquire(&wait_lock);
 

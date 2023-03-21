@@ -16,5 +16,5 @@ int main(){
     bytes_of_memory = memsize();
     printf("%d\n", bytes_of_memory);
 
-    exit(0);
+    exit(0, "exit_message");
 }
