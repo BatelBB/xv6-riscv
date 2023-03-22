@@ -350,6 +350,8 @@ exit(int status, char * msg)
 
   strncpy(p->exit_msg, msg, strlen(msg));
 
+
+
   if(p == initproc)
     panic("init exiting");
 
@@ -396,7 +398,6 @@ wait(uint64 addr, char * msg)
   int havekids, pid;
   struct proc *p = myproc();
 
-  copyout(p->pagetable, (uint64)msg, p->exit_msg, strlen(msg));
 
   acquire(&wait_lock);
 
@@ -411,9 +412,12 @@ wait(uint64 addr, char * msg)
         havekids = 1;
         if(pp->state == ZOMBIE){
           // Found one.
+          copyout(p->pagetable, (uint64)msg, (char *)&pp->exit_msg, sizeof(pp->exit_msg));
+          printf("%s", msg);
           pid = pp->pid;
           if(addr != 0 && copyout(p->pagetable, addr, (char *)&pp->xstate,
                                   sizeof(pp->xstate)) < 0) {
+            
             release(&pp->lock);
             release(&wait_lock);
             return -1;

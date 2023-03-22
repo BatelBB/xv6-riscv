@@ -96,7 +96,6 @@ runcmd(struct cmd *cmd)
     if(fork1() == 0)
       runcmd(lcmd->left);
     wait(0, wait_msg);
-    printf("%s", wait_msg);
     runcmd(lcmd->right);
     break;
 
@@ -171,6 +170,7 @@ main(void)
     if(fork1() == 0)
       runcmd(parsecmd(buf));
     wait(0, wait_msg);
+    printf("%s", wait_msg);
   }
   exit(0, "exit_message");
 }
