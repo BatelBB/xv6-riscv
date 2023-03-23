@@ -100,3 +100,13 @@ sys_memsize(void)
   struct proc *p = myproc();
   return p->sz;
 }
+
+uint64
+sys_set_ps_priority(void)
+{
+  struct proc *p = myproc();
+  int n;
+  argint(0, &n);
+  p->ps_priority = n;
+  return p->ps_priority;
+}

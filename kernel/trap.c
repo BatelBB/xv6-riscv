@@ -46,7 +46,11 @@ usertrap(void)
   w_stvec((uint64)kernelvec);
 
   struct proc *p = myproc();
-  
+
+  if (p && p->state == RUNNING && devintr() == 2) { // Check if it is a timer interrupt
+  //ignoring ruunable -> blocked runtime
+    p->accumulator += p->ps_priority;
+  }
   // save user program counter.
   p->trapframe->epc = r_sepc();
   
