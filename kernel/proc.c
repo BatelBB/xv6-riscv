@@ -100,7 +100,6 @@ int allocpid()
   return pid;
 }
 
-
 int setAccumulator(void)
 {
   long long min = 0;
@@ -485,15 +484,25 @@ int wait(uint64 addr, uint64 msg)
   }
 }
 
-struct proc * findNextMinProc(void){
+struct proc *findNextMinProc(void)
+{
   int min = setAccumulator();
   int i;
-  for(i = 0; i<NPROC; i++){
-    if(proc[i].accumulator == min){
-      return &proc[i];
+  struct proc * spareProc;
+  for (i = 0; i < NPROC; i++)
+  {
+    spareProc = &proc[i];
+    if (proc[i].state == RUNNABLE)
+      spareProc = &proc[i];
+    if (proc[i].state == RUNNABLE || proc[i].state == RUNNING)
+    {
+      if (proc[i].accumulator == min)
+      {
+        return &proc[i];
+      }
     }
   }
-  return myproc();
+  return spareProc;
 }
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
@@ -513,26 +522,26 @@ void scheduler(void)
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
 
-    //for (p = proc; p < &proc[NPROC]; p++)
-    //{
-      p = findNextMinProc();
-      acquire(&p->lock);
-      if (p->state == RUNNABLE)
-      {
+    //  for (p = proc; p < &proc[NPROC]; p++)
+    // {
+    p = findNextMinProc();
+    acquire(&p->lock);
+    if (p->state == RUNNABLE)
+    {
 
-        // Switch to chosen process.  It is the process's job
-        // to release its lock and then reacquire it
-        // before jumping back to us.
-        p->state = RUNNING;
-        c->proc = p;
-        swtch(&c->context, &p->context);
+      // Switch to chosen process.  It is the process's job
+      // to release its lock and then reacquire it
+      // before jumping back to us.
+      p->state = RUNNING;
+      c->proc = p;
+      swtch(&c->context, &p->context);
 
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
-      //}
+      // Process is done running for now.
+      // It should have changed its p->state before coming back.
+      c->proc = 0;
+      }
       release(&p->lock);
-    }
+    // }
   }
 }
 
