@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "limits.h"
 
 struct cpu cpus[NCPU];
 
@@ -129,7 +130,7 @@ static struct proc *
 allocproc(void)
 {
   struct proc *p;
-
+  
   for (p = proc; p < &proc[NPROC]; p++)
   {
     acquire(&p->lock);
@@ -174,6 +175,10 @@ found:
   p->accumulator = setAccumulator();
   p->ps_priority = 5;
 
+  p->retime = 1;
+  p->rtime = 1;
+  p->stime = 1;
+  p->cfs_priority = 1; 
   return p;
 }
 
@@ -277,7 +282,6 @@ void userinit(void)
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
-
   release(&p->lock);
 }
 
@@ -312,6 +316,7 @@ int fork(void)
   struct proc *np;
   struct proc *p = myproc();
 
+
   // Allocate process.
   if ((np = allocproc()) == 0)
   {
@@ -330,6 +335,8 @@ int fork(void)
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);
 
+  np->cfs_priority = p->cfs_priority; //Assignment 1 - Task 6
+  printf("ASS1 - Copied priority\n");
   // Cause fork to return 0 in the child.
   np->trapframe->a0 = 0;
 
@@ -484,6 +491,7 @@ int wait(uint64 addr, uint64 msg)
   }
 }
 
+// For assignment 1 - task 5
 struct proc *findNextMinProc(void)
 {
   int min = setAccumulator();
@@ -504,6 +512,45 @@ struct proc *findNextMinProc(void)
   }
   return spareProc;
 }
+
+// Assignment 1 - Task 6
+void updateClock(){
+  struct proc * p;
+  for (p = proc; p < &proc[NPROC]; p++){
+    acquire(&p->lock);
+    if(p->state == RUNNABLE){
+      p->retime++;
+    }else if(p->state == RUNNING){
+      p->rtime++;
+    }else{
+      p->stime++;
+    }
+    release(&p->lock);
+  }
+}
+
+// Assignment 1 - Task 6
+struct proc *findCFSMinProc(){
+  struct proc *min_proc = myproc();
+  long min_vruntime = LONG_MAX;
+
+  int i;
+  for (i = 0; i < NPROC; i++) {
+    acquire(&proc[i].lock);
+    if (proc[i].state == RUNNABLE) {
+      printf("Inside if, priority: %d, rtime: %d, retime: %d, stime: %d\n", proc[i].cfs_priority, proc[i].rtime, proc[i].retime, proc[i].stime);
+       long vruntime = (long)(proc[i].cfs_priority * proc[i].rtime / (proc[i].rtime + proc[i].stime + proc[i].retime));
+       printf("VRUNTIME: %d\n",vruntime);
+       if (vruntime < min_vruntime) {
+
+        min_vruntime = vruntime;
+        min_proc = &proc[i];
+      }
+    }
+    release(&proc[i].lock);
+  }
+  return min_proc;
+}
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
 // Scheduler never returns.  It loops, doing:
@@ -515,7 +562,6 @@ void scheduler(void)
 {
   struct proc *p;
   struct cpu *c = mycpu();
-
   c->proc = 0;
   for (;;)
   {
@@ -524,7 +570,10 @@ void scheduler(void)
 
     //  for (p = proc; p < &proc[NPROC]; p++)
     // {
-    p = findNextMinProc();
+
+    p = findCFSMinProc(); // Assignment 1 - Task 6
+    //p = findNextMinProc(); // Assignment 1 - Task 5
+
     acquire(&p->lock);
     if (p->state == RUNNABLE)
     {

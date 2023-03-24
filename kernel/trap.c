@@ -169,6 +169,9 @@ clockintr()
 {
   acquire(&tickslock);
   ticks++;
+
+  updateClock(); // Assignment 1 - Task 6
+
   wakeup(&ticks);
   release(&tickslock);
 }

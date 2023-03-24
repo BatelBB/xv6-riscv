@@ -107,4 +107,12 @@ struct proc {
   char exit_msg[32];
   long long accumulator;
   int ps_priority;
+
+  int cfs_priority;
+  long long rtime;
+  long long stime;
+  long long retime;
+
 };
+
+  void updateClock();
