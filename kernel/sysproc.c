@@ -110,3 +110,29 @@ sys_set_ps_priority(void)
   p->ps_priority = n;
   return p->ps_priority;
 }
+
+uint64
+sys_set_cfs_priority(void)
+{
+  struct proc *p = myproc();
+  int n;
+  argint(0, &n);
+  p->cfs_priority = n;
+  return p->cfs_priority;
+}
+
+uint64
+sys_get_cfs_stats(void)
+{
+  int n1;
+  argint(0, &n1);
+  uint64 n2;
+  argaddr(1, &n2);
+  uint64 n3;
+  argaddr(2, &n3);
+  uint64 n4;
+  argaddr(3, &n4);
+  uint64 n5;
+  argaddr(4, &n5);
+  return get_cfs_stats(n1,n2,n3,n4,n5);
+}
