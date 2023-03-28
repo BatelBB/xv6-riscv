@@ -112,12 +112,8 @@ struct proc {
   long long rtime;
   long long stime;
   long long retime;
-<<<<<<< HEAD
-
-=======
   long long cfsVrunTime;
  
->>>>>>> 66d66b1 (working)
 };
 
   void updateClock();
