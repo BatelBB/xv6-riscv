@@ -7,6 +7,9 @@
 #include "defs.h"
 #include "limits.h"
 
+int sched_policy = 0;
+
+
 struct cpu cpus[NCPU];
 
 struct proc proc[NPROC];
@@ -604,43 +607,53 @@ struct proc *findCFSMinProc()
 void scheduler(void)
 {
   struct proc *p;
-  struct cpu *c = mycpu();
-  c->proc = 0;
+  
   for (;;)
   {
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
 
-    //  for (p = proc; p < &proc[NPROC]; p++)
-    // {
-
-    p = findCFSMinProc(); // Assignment 1 - Task 6
-                          // if(p->pid == myproc()->pid){
-    //  yield();
-    //}
-    // p = findNextMinProc(); // Assignment 1 - Task 5
-
-    // updateCFSVal();
-    if (p != 0)
+    if (sched_policy == 0)
     {
-      acquire(&p->lock);
-      if (p->state == RUNNABLE)
+      for (p = proc; p < &proc[NPROC]; p++)
       {
-
-        // Switch to chosen process.  It is the process's job
-        // to release its lock and then reacquire it
-        // before jumping back to us.
-        p->state = RUNNING;
-        c->proc = p;
-        swtch(&c->context, &p->context);
-
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
+        exec_schedule(p);
       }
-      release(&p->lock);
-      // }
     }
+    else if (sched_policy == 1)
+    {
+      exec_schedule(findNextMinProc());
+    }
+    else
+    {
+      exec_schedule(findCFSMinProc());
+    }
+  }
+}
+
+void exec_schedule(struct proc *p)
+{
+  struct cpu *c = mycpu();
+  c->proc = 0;
+  
+  if (p != 0)
+  {
+    acquire(&p->lock);
+    if (p->state == RUNNABLE)
+    {
+
+      // Switch to chosen process.  It is the process's job
+      // to release its lock and then reacquire it
+      // before jumping back to us.
+      p->state = RUNNING;
+      c->proc = p;
+      swtch(&c->context, &p->context);
+
+      // Process is done running for now.
+      // It should have changed its p->state before coming back.
+      c->proc = 0;
+    }
+    release(&p->lock);
   }
 }
 

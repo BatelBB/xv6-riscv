@@ -188,3 +188,6 @@ void            virtio_disk_intr(void);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
+
+extern int sched_policy;
+void            exec_schedule(struct proc *p);

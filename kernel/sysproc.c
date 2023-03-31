@@ -144,3 +144,12 @@ sys_get_cfs_stats(void)
   argaddr(4, &n5);
   return get_cfs_stats(n1,n2,n3,n4,n5);
 }
+
+uint64
+sys_set_policy(void)
+{
+  int n;
+  argint(0, &n);
+  sched_policy = n;
+  return n;
+}

@@ -138,6 +138,7 @@ UPROGS=\
 	$U/_test5\
 	$U/_cfs\
 	$U/_test6\
+	$U/_policy\
 
 	
 
