@@ -107,8 +107,12 @@ sys_set_ps_priority(void)
   struct proc *p = myproc();
   int n;
   argint(0, &n);
+
+  acquire(&p->lock);
   p->ps_priority = n;
-  return p->ps_priority;
+  release(&p->lock);
+
+  return n;
 }
 
 uint64
@@ -117,8 +121,12 @@ sys_set_cfs_priority(void)
   struct proc *p = myproc();
   int n;
   argint(0, &n);
+
+  acquire(&p->lock);
   p->cfs_priority = n;
-  return p->cfs_priority;
+  release(&p->lock);
+
+  return n;
 }
 
 uint64

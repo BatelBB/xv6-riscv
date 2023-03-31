@@ -136,6 +136,8 @@ UPROGS=\
 	$U/_memsize_test\
 	$U/_goodbye\
 	$U/_test5\
+	$U/_cfs\
+	$U/_test6\
 
 	
 
