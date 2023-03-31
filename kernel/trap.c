@@ -169,11 +169,10 @@ clockintr()
 {
   acquire(&tickslock);
   ticks++;
-
-  updateClock(); // Assignment 1 - Task 6
-
   wakeup(&ticks);
   release(&tickslock);
+
+  updateClock(); // Assignment 1 - Task 6
 }
 
 // check if it's an external interrupt or software interrupt,

@@ -129,9 +129,9 @@ int setAccumulator(void)
 static struct proc *
 allocproc(void)
 {
-  //printf("new allocproccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\n");
+  // printf("new allocproccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\n");
   struct proc *p;
-  
+
   for (p = proc; p < &proc[NPROC]; p++)
   {
     acquire(&p->lock);
@@ -179,7 +179,7 @@ found:
   p->retime = 1;
   p->rtime = 1;
   p->stime = 1;
-  p->cfs_priority = 1; 
+  p->cfs_priority = 1;
   return p;
 }
 
@@ -313,12 +313,10 @@ int growproc(int n)
 // Sets up child kernel stack to return as if from fork() system call.
 int fork(void)
 {
-  
 
   int i, pid;
   struct proc *np;
   struct proc *p = myproc();
-
 
   // Allocate process.
   if ((np = allocproc()) == 0)
@@ -338,7 +336,7 @@ int fork(void)
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);
 
-  np->cfs_priority = p->cfs_priority; //Assignment 1 - Task 6
+  np->cfs_priority = p->cfs_priority; // Assignment 1 - Task 6
   // Cause fork to return 0 in the child.
   np->trapframe->a0 = 0;
 
@@ -498,7 +496,7 @@ struct proc *findNextMinProc(void)
 {
   int min = setAccumulator();
   int i;
-  struct proc * spareProc;
+  struct proc *spareProc;
   for (i = 0; i < NPROC; i++)
   {
     spareProc = &proc[i];
@@ -518,53 +516,61 @@ struct proc *findNextMinProc(void)
 int i = 0;
 
 // Assignment 1 - Task 6
-void updateClock(){
-  struct proc * p;
+void updateClock()
+{
+  struct proc *p;
 
-  for (p = proc; p < &proc[NPROC]; p++){
-  //printf("Inside if, proid: %d  priority: %d, rtime: %d, retime: %d, stime: %d\n, pstate: %d\n\n", p->pid, p->cfs_priority, p->rtime, p->retime, p->stime, p->state);
+  for (p = proc; p < &proc[NPROC]; p++)
+  {
+    // printf("Inside if, proid: %d  priority: %d, rtime: %d, retime: %d, stime: %d\n, pstate: %d\n\n", p->pid, p->cfs_priority, p->rtime, p->retime, p->stime, p->state);
 
     acquire(&p->lock);
-    if(p->state == RUNNABLE){
+    if (p->state == RUNNABLE)
+    {
       p->retime++;
-      printf("run: %d, pid: %d runnable newRtiem: %d\n", i, p->pid, p->rtime);
-    }else if(p->state == RUNNING){
+      // printf("run: %d, pid: %d runnable newRtiem: %d\n", i, p->pid, p->rtime);
+    }
+    else if (p->state == RUNNING)
+    {
       p->rtime++;
-      printf("run: %d, pid: %d running\n", i, p->pid);
-    }else if(p->state == SLEEPING){
+      // printf("run: %d, pid: %d running\n", i, p->pid);
+    }
+    else if (p->state == SLEEPING)
+    {
       p->stime++;
-      printf("run: %d, pid: %d sleeping\n", i, p->pid);
+      // printf("run: %d, pid: %d sleeping\n", i, p->pid);
     }
     i++;
-    //printf("Inside if, proid: %d  priority: %d, rtime: %d, retime: %d, stime: %d\n, pstate: %d\n\n", p->pid, p->cfs_priority, p->rtime, p->retime, p->stime, p->state);
+    // printf("Inside if, proid: %d  priority: %d, rtime: %d, retime: %d, stime: %d\n, pstate: %d\n\n", p->pid, p->cfs_priority, p->rtime, p->retime, p->stime, p->state);
 
     release(&p->lock);
   }
 }
 
-int getDecayFactor(int i){
+int getDecayFactor(int i)
+{
   if (i == 0)
     return 75;
-  else if(i == 1)
+  else if (i == 1)
     return 100;
   else
     return 125;
 }
 
-long updateCFSVal(){
-  //only for running|runnable bc they have the potential to run next
-
-  
-
+long updateCFSVal()
+{
+  // only for running|runnable bc they have the potential to run next
   long long minVrunTime = -1;
   int i;
-  for (i = 0; i < NPROC; i++) {
+  for (i = 0; i < NPROC; i++)
+  {
     long vruntime;
-    if(proc[i].state == RUNNABLE || proc[i].state == RUNNING){
+    if (proc[i].state == RUNNABLE || proc[i].state == RUNNING)
+    {
       vruntime = (long)(getDecayFactor(proc[i].cfs_priority) * proc[i].rtime / (proc[i].rtime + proc[i].stime + proc[i].retime));
       proc[i].cfsVrunTime = vruntime;
 
-      if(minVrunTime == -1 || minVrunTime > vruntime)
+      if (minVrunTime == -1 || minVrunTime > vruntime)
         minVrunTime = vruntime;
     }
   }
@@ -573,23 +579,21 @@ long updateCFSVal(){
 }
 
 // Assignment 1 - Task 6
-struct proc *findCFSMinProc(){
+struct proc *findCFSMinProc()
+{
   long minVrunTime = updateCFSVal();
-
-  printf("\n%d\n", minVrunTime);
-
-  for (i = 0; i < NPROC; i++) {
-    if(proc[i].cfsVrunTime == minVrunTime)
-      return &proc[i]; 
+  if (minVrunTime != -1)
+  {
+    for (i = 0; i < NPROC; i++)
+    {
+      if (proc[i].cfsVrunTime == minVrunTime)
+        return &proc[i];
+    }
   }
 
-  if(myproc()->state != RUNNING){
-    printf("whyyyy????\n");
-  }  
-
-  return myproc();
-
+  return 0;
 }
+
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
 // Scheduler never returns.  It loops, doing:
@@ -611,28 +615,32 @@ void scheduler(void)
     // {
 
     p = findCFSMinProc(); // Assignment 1 - Task 6
-   // if(p->pid == myproc()->pid){
+                          // if(p->pid == myproc()->pid){
     //  yield();
     //}
-    //p = findNextMinProc(); // Assignment 1 - Task 5
+    // p = findNextMinProc(); // Assignment 1 - Task 5
 
-    acquire(&p->lock);
-    if (p->state == RUNNABLE)
+    // updateCFSVal();
+    if (p != 0)
     {
+      acquire(&p->lock);
+      if (p->state == RUNNABLE)
+      {
 
-      // Switch to chosen process.  It is the process's job
-      // to release its lock and then reacquire it
-      // before jumping back to us.
-      p->state = RUNNING;
-      c->proc = p;
-      swtch(&c->context, &p->context);
+        // Switch to chosen process.  It is the process's job
+        // to release its lock and then reacquire it
+        // before jumping back to us.
+        p->state = RUNNING;
+        c->proc = p;
+        swtch(&c->context, &p->context);
 
-      // Process is done running for now.
-      // It should have changed its p->state before coming back.
-      c->proc = 0;
+        // Process is done running for now.
+        // It should have changed its p->state before coming back.
+        c->proc = 0;
       }
       release(&p->lock);
-    // }
+      // }
+    }
   }
 }
 
@@ -820,15 +828,17 @@ int either_copyin(void *dst, int user_src, uint64 src, uint64 len)
   }
 }
 
-int get_cfs_stats(int pid, uint64 cfs_priority, uint64 rtime, uint64 stime, uint64 retime){
+int get_cfs_stats(int pid, uint64 cfs_priority, uint64 rtime, uint64 stime, uint64 retime)
+{
   struct proc *p;
   for (p = proc; p < &proc[NPROC]; p++)
   {
-    if(p->pid == pid){
-      copyout(p->pagetable, cfs_priority, (char*)&(p->cfs_priority), sizeof(p->cfs_priority));
-      copyout(p->pagetable, rtime, (char*)&p->rtime, sizeof(p->rtime));
-      copyout(p->pagetable, stime, (char*)&p->stime, sizeof(p->stime));
-      copyout(p->pagetable, retime, (char*)&p->retime, sizeof(p->retime));
+    if (p->pid == pid)
+    {
+      copyout(p->pagetable, cfs_priority, (char *)&(p->cfs_priority), sizeof(p->cfs_priority));
+      copyout(p->pagetable, rtime, (char *)&p->rtime, sizeof(p->rtime));
+      copyout(p->pagetable, stime, (char *)&p->stime, sizeof(p->stime));
+      copyout(p->pagetable, retime, (char *)&p->retime, sizeof(p->retime));
     }
   }
 
@@ -863,9 +873,3 @@ void procdump(void)
     printf("\n");
   }
 }
-
-
-
-  
-
-  

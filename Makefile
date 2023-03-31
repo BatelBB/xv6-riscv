@@ -56,11 +56,7 @@ LD = $(TOOLPREFIX)ld
 OBJCOPY = $(TOOLPREFIX)objcopy
 OBJDUMP = $(TOOLPREFIX)objdump
 
-<<<<<<< HEAD
 CFLAGS = -g -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2
-=======
-CFLAGS = -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -g
->>>>>>> 66d66b1 (working)
 CFLAGS += -MD
 CFLAGS += -mcmodel=medany
 CFLAGS += -ffreestanding -fno-common -nostdlib -mno-relax
@@ -139,6 +135,8 @@ UPROGS=\
 	$U/_helloworld\
 	$U/_memsize_test\
 	$U/_goodbye\
+	$U/_test5\
+
 	
 
 fs.img: mkfs/mkfs README $(UPROGS)

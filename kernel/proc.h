@@ -112,6 +112,10 @@ struct proc {
   long long rtime;
   long long stime;
   long long retime;
+
+
+
+  
   long long cfsVrunTime;
  
 };
