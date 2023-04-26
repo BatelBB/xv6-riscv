@@ -4,9 +4,12 @@
 
 struct uthread uthreads[MAX_UTHREADS];
 struct uthread *currentThread;
+int ids = 0;
 
 void call_exit(void (*start_func)()) {
+  
   start_func();
+  printf("call_exit: hello\n");
   uthread_exit();
 }
 
@@ -15,6 +18,7 @@ void call_exit(void (*start_func)()) {
 int uthread_create(void (*start_func)(), enum sched_priority priority)
 {
     int i;
+    ids ++;
 
     for (i = 0; i < MAX_UTHREADS; i++)
     {
@@ -25,13 +29,14 @@ int uthread_create(void (*start_func)(), enum sched_priority priority)
     if (i == MAX_UTHREADS)
         return -1;
 
-    uthreads[i].context.ra = (uint64)call_exit;
+    uthreads[i].context.ra = (uint64)start_func;
     uthreads[i].context.sp = (uint64)(&uthreads[i].ustack[STACK_SIZE]);
     uthreads[i].context.sp += sizeof(uint64);
-    *((uint64 *)uthreads[i].context.sp) = (uint64)start_func;
     uthreads[i].state = RUNNABLE;
     uthreads[i].priority = priority;
     currentThread = &uthreads[i];
+
+    currentThread->pid = ids;
 
     return 0;
 }
@@ -39,17 +44,63 @@ int uthread_create(void (*start_func)(), enum sched_priority priority)
 
 void uthread_yield()
 {
-struct uthread *prevThread = currentThread;
+  // if(currentThread->state == RUNNING)
+  currentThread->state = RUNNABLE;
+  schedule();
 
-  int threadDifference = currentThread - uthreads + 1;
-  int nextIndex = threadDifference % MAX_UTHREADS;
-
-  while (uthreads[nextIndex].state != RUNNABLE) {
-    nextIndex = (nextIndex + 1) % MAX_UTHREADS;
-  }
-  currentThread = &uthreads[nextIndex];
-  uswtch(&prevThread->context, &currentThread->context); 
 }
+
+
+char* get_state(enum tstate s){
+  switch (s)
+  {
+  case FREE:
+    return "FREE";
+  case  RUNNING:
+    return "RUNNING";
+  case RUNNABLE:
+    return "RUNNABLE";
+  }
+
+  return "ERROR";
+}
+
+
+void schedule(){
+  struct uthread *cur; 
+
+  
+
+
+  cur = currentThread;
+  int i;
+  int j;
+  j = (currentThread - uthreads + 1) % MAX_UTHREADS;
+  
+  
+
+  for(i = 0; i < MAX_UTHREADS; i++){
+    if(uthreads[j].state == RUNNABLE || uthreads[j].state == RUNNING)
+      break;
+    j = (j+1) % MAX_UTHREADS;    
+  }
+
+  if(!(uthreads[j].state == RUNNABLE || uthreads[j].state == RUNNING)){
+    exit(-1);
+  }
+
+  currentThread = &uthreads[j];
+  currentThread->state = RUNNING;
+
+  uswtch(&cur->context, &uthreads[j].context);
+  
+}
+
+
+
+
+
+
 
 void uthread_exit()
 {
@@ -60,10 +111,14 @@ void uthread_exit()
       remainingThreads++;
   }
 
-  if (remainingThreads == 0) 
+
+  if (remainingThreads == 0){
     exit(0);
+  }
   else 
-    uthread_yield();
+  {
+    schedule();
+  }
 }
 
 enum sched_priority uthread_set_priority(enum sched_priority priority)
@@ -101,7 +156,6 @@ int uthread_start_all() {
   currentThread = &uthreads[firstRunnableThread];
 
   struct context dummyContext;
-  printf("inside start all\n");
   uswtch(&dummyContext, &currentThread->context);
 
   return -1;

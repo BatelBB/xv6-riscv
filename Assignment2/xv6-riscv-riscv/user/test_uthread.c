@@ -6,6 +6,7 @@ void print_low() {
     printf("Low priority thread\n");
     uthread_yield();
   }
+  uthread_exit();
 }
 
 void print_medium() {
@@ -13,6 +14,7 @@ void print_medium() {
     printf("Medium priority thread\n");
     uthread_yield();
   }
+  uthread_exit();
 }
 
 void print_high() {
@@ -20,6 +22,7 @@ void print_high() {
     printf("High priority thread\n");
     uthread_yield();
   }
+  uthread_exit();
 }
 
 int main() {

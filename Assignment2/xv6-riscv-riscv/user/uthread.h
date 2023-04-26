@@ -34,6 +34,7 @@ struct uthread {
     enum tstate         state;          // FREE, RUNNING, RUNNABLE
     struct context      context;        // uswtch() here to run process
     enum sched_priority priority;       // scheduling priority
+    int                 pid;
 };
 
 extern void uswtch(struct context*, struct context*);
@@ -48,3 +49,5 @@ enum sched_priority uthread_set_priority(enum sched_priority priority);
 enum sched_priority uthread_get_priority();
 
 struct uthread* uthread_self();
+
+void schedule();
