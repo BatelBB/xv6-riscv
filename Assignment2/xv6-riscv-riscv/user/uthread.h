@@ -51,3 +51,4 @@ enum sched_priority uthread_get_priority();
 struct uthread* uthread_self();
 
 void schedule();
+struct uthread *find_next(enum sched_priority);

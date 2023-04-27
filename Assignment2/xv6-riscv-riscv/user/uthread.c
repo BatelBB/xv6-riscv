@@ -67,35 +67,44 @@ char* get_state(enum tstate s){
 
 
 void schedule(){
-  struct uthread *cur; 
-
-  
-
+  struct uthread *cur, *next; 
 
   cur = currentThread;
-  int i;
-  int j;
-  j = (currentThread - uthreads + 1) % MAX_UTHREADS;
   
-  
-
-  for(i = 0; i < MAX_UTHREADS; i++){
-    if(uthreads[j].state == RUNNABLE || uthreads[j].state == RUNNING)
-      break;
-    j = (j+1) % MAX_UTHREADS;    
-  }
-
-  if(!(uthreads[j].state == RUNNABLE || uthreads[j].state == RUNNING)){
+  next = find_next(HIGH);
+  if(next == 0)
+    next = find_next(MEDIUM);
+  if(next == 0)
+    next = find_next(LOW);
+  if(next == 0)
     exit(-1);
-  }
 
-  currentThread = &uthreads[j];
+  currentThread = next;
   currentThread->state = RUNNING;
 
-  uswtch(&cur->context, &uthreads[j].context);
+  uswtch(&cur->context, &next->context);
   
 }
 
+
+struct uthread *find_next(enum sched_priority priority){
+  
+  struct uthread* next = 0;
+
+  int i;
+  int j;
+  j = (currentThread - uthreads + 1) % MAX_UTHREADS;
+
+  for(i = 0; i < MAX_UTHREADS; i++){
+    if((uthreads[j].state == RUNNABLE || uthreads[j].state == RUNNING) && uthreads[j].priority == priority){
+      next = &uthreads[j];
+      break;
+    }
+    j = (j+1) % MAX_UTHREADS;    
+  }
+
+  return next;
+}
 
 
 
@@ -141,24 +150,23 @@ int uthread_start_all() {
   }
   uthreadStarted = 1;
 
-  int firstRunnableThread = -1;
-  for (int i = 0; i < MAX_UTHREADS; i++) {
-    if (uthreads[i].state == RUNNABLE) {
-      firstRunnableThread = i;
-      break;
-    }
-  }
-
-  if (firstRunnableThread == -1) 
-    return -1; 
-  
-
-  currentThread = &uthreads[firstRunnableThread];
-
   struct context dummyContext;
+  struct uthread *next; 
+
+  next = find_next(HIGH);
+  if(next == 0)
+    next = find_next(MEDIUM);
+  if(next == 0)
+    next = find_next(LOW);
+  if(next == 0)
+    exit(-1);
+
+  currentThread = next;
+  currentThread->state = RUNNING;
+
   uswtch(&dummyContext, &currentThread->context);
 
-  return -1;
+  return 0;
 }
 
 
