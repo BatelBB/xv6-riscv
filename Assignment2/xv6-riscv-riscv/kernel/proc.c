@@ -15,7 +15,7 @@ struct proc *initproc;
 int nextpid = 1;
 struct spinlock pid_lock;
 
-extern void forkret(void);
+
 static void freeproc(struct proc *p);
 
 extern char trampoline[]; // trampoline.S
@@ -142,6 +142,11 @@ found:
     return 0;
   }
 
+  //kthreads:
+  p->counter = 1;
+  kthreadinit(p);
+  alloc_thread(p);                                                            //wahatttt?????  maybe p->kthread[0] = 
+
 
   // Set up new context to start executing at forkret,
   // which returns to user space.
@@ -171,10 +176,15 @@ freeproc(struct proc *p)
   p->pid = 0;
   p->parent = 0;
   p->name[0] = 0;
-  p->chan = 0;
+  // p->chan = 0;
   p->killed = 0;
   p->xstate = 0;
   p->state = UNUSED;
+
+  struct kthread* kt;
+  for(kt = p->kthread; kt < &p->kthread + NKT; kt++){
+    free_thread(kt);
+  }
 }
 
 // Create a user page table for a given process, with no user memory,
@@ -251,12 +261,14 @@ userinit(void)
   // prepare for the very first "return" from kernel to user.
   p->kthread[0].trapframe->epc = 0;      // user program counter
   p->kthread[0].trapframe->sp = PGSIZE;  // user stack pointer
+  p->kthread[0].state = KRUNNABLE;  
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
 
-  p->state = RUNNABLE;
+  // p->state = RUNNABLE;
 
+  release(&p->kthread[0].lock);
   release(&p->lock);
 }
 
