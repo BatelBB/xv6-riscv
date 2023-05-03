@@ -11,11 +11,12 @@ extern struct proc proc[NPROC];
 
 void kthreadinit(struct proc *p)
 {
-  acquire(&p->thread_lock);
+  initlock(&p->thread_lock, "thread_lock");
+  // acquire(&p->thread_lock);
 
   for (struct kthread *kt = p->kthread; kt < &p->kthread[NKT]; kt++)
   {
-    initi_lock(&kt->lock);
+    initlock(&kt->lock, "kthread lock");
     kt->state = KUNUSED;
     kt->pcb = p;
 
@@ -23,12 +24,20 @@ void kthreadinit(struct proc *p)
     // get the pointer to the kernel stack of the kthread
     kt->kstack = KSTACK((int)((p - proc) * NKT + (kt - p->kthread)));
   }
-  release(&p->thread_lock);
+  // release(&p->thread_lock);
 }
 
 struct kthread *mykthread()
 {
-  return mycpu()->thread;
+  push_off();
+  struct kthread* kt;
+  if(mycpu()->thread == 0)
+    kt = 0;
+  else
+    kt = mycpu()->thread; 
+  pop_off();
+  
+  return kt;
 }
 
 int alloc_thread_id(struct proc *p){
@@ -40,10 +49,11 @@ int alloc_thread_id(struct proc *p){
 }
 
 struct kthread* alloc_thread(struct proc *p){
-  acquire(&p->lock);
+  // acquire(&p->lock);
   for (struct kthread *kt = p->kthread; kt < &p->kthread[NKT]; kt++)
   {
     if(kt->state == KUNUSED){
+      acquire(&kt->lock);
       kt->tid = alloc_thread_id(p);
       kt->state = KUSED;
       kt->trapframe = get_kthread_trapframe(p, kt);
@@ -51,24 +61,26 @@ struct kthread* alloc_thread(struct proc *p){
       kt->context.ra = (uint64)forkret;
       kt->context.sp = (uint64)kt->kstack + PGSIZE;
 
-      release(&p->lock);
+      // release(&p->lock);
       return kt;
     }
   }
 
-  release(&p->lock);
+  // release(&p->lock);
   return 0;
 }
 
 void free_thread(struct kthread* kt){
-  acquire(&kt->lock);
-  kt->trapframe = 0;
-  kt->state = KUNUSED;
-  kt->chan = 0;
-  kt->tid = 0;
-  kt->kstack = 0;
+  if(kt != 0){
+    acquire(&kt->lock);
+    kt->trapframe = 0;
+    kt->state = KUNUSED;
+    kt->chan = 0;
+    kt->tid = 0;
+    kt->killed = 0;
 
-  release(&kt->lock);
+    release(&kt->lock);
+  }
 }
 
 struct trapframe *get_kthread_trapframe(struct proc *p, struct kthread *kt)
@@ -76,9 +88,3 @@ struct trapframe *get_kthread_trapframe(struct proc *p, struct kthread *kt)
   return p->base_trapframes + ((int)(kt - p->kthread));
 }
 
-// TODO: delte this after you are done with task 2.2
-void allocproc_help_function(struct proc *p) {
-  p->kthread->trapframe = get_kthread_trapframe(p, p->kthread);
-
-  p->context.sp = p->kthread->kstack + PGSIZE;
-}

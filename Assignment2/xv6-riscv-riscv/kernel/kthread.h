@@ -106,3 +106,4 @@ extern struct cpu cpus[NCPU];
 
 struct kthread* alloc_thread(struct proc*);
 void free_thread(struct kthread*);
+struct trapframe *get_kthread_trapframe(struct proc *, struct kthread *);
