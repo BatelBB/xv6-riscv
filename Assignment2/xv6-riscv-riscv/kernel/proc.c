@@ -481,7 +481,7 @@ wait(uint64 addr)
     }
 
     // No point waiting if we don't have any children.
-    if(!havekids || killed(p)){
+    if(!havekids || kthread_killed(mykthread())){
       release(&wait_lock);
       return -1;
     }
@@ -724,6 +724,19 @@ killed(struct proc *p)
   acquire(&p->lock);
   k = p->killed;
   release(&p->lock);
+  return k;
+}
+
+int
+kthread_killed(struct kthread *kt)
+{
+  int k;
+  
+  acquire(&kt->pcb->lock);
+  acquire(&kt->lock);
+  k = kt->killed || kt->pcb->killed;
+  release(&kt->lock);
+  release(&kt->pcb->lock);
   return k;
 }
 

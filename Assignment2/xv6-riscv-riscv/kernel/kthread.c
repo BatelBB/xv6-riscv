@@ -9,6 +9,8 @@
 
 extern struct proc proc[NPROC];
 
+
+
 void kthreadinit(struct proc *p)
 {
   initlock(&p->thread_lock, "thread_lock");
@@ -87,4 +89,137 @@ struct trapframe *get_kthread_trapframe(struct proc *p, struct kthread *kt)
 {
   return p->base_trapframes + ((int)(kt - p->kthread));
 }
+
+
+
+int kthread_create( void *(*start_func)(), void *stack, uint stack_size){
+  struct proc * p;
+  p = myproc();
+
+  struct kthread* kt = alloc_thread(p);
+  if(kt == 0)
+    return -1;
+
+  kt->state = KRUNNABLE;
+  kt->trapframe->epc = (uint64)start_func;
+  kt->trapframe->sp = (uint64)stack + stack_size;
+
+  return 0;
+}
+
+struct kthread* get_kthread(int ktid){
+  struct proc* p;
+  for(p = proc; p < proc + NPROC; p ++){
+    struct kthread* kt;
+    if(p->state == USED){
+      for(kt = p->kthread; kt < p->kthread + NKT; kt++){
+        if(kt->tid == ktid){
+          return kt;
+        }
+      }
+    }
+  }
+  return 0;
+}
+
+int kthread_kill(int ktid){
+  struct kthread* kt;
+  kt = get_kthread(ktid);
+  if(kt == 0)
+    return -1;
+
+  acquire(&kt->lock);
+  kt->killed = 1;
+  if(kt->state == KSLEEPING)
+    kt->state = KRUNNABLE;
+  
+  release(&kt->lock);
+  return 0;
+}
+
+void kthread_exit(int status){
+
+
+  struct kthread* kt = mykthread();
+  
+  wakeup(kt);
+
+
+  acquire(&kt->lock);
+  kt->xstate = status;
+  kt->state = KZOMBIE;
+  release(&kt->lock);
+  
+  //check if it was the last thread of the process:
+  struct proc* p = kt->pcb;
+  acquire(&p->lock);
+  struct kthread* t;
+  int has_active_thread = 0;
+  for(t = p->kthread; t < p->kthread + NKT; t++){
+    if(t->state != KZOMBIE && t->state != KUNUSED){
+      has_active_thread++;
+      break;
+    }
+  }
+
+  release(&kt->pcb->lock);
+  
+  if(!has_active_thread){
+    exit(status);
+  }
+
+  acquire(&kt->lock);
+  sched();
+  panic("zombie kthread exit");
+}
+
+int kthread_join(int ktid, int *status){
+  //find the kthread
+  struct kthread* kt;
+  kt = get_kthread(ktid);
+
+  // struct kthread* calling_thread;
+  // calling_thread = mykthread();
+
+  struct proc* p;
+  p = myproc();
+
+  //sleep
+  //chan = mykthread
+  for(;;){
+    acquire(&kt->lock);
+    // kt->state = KSLEEPING;
+    // kt->chan = mykthread();
+    // // release(&kt->lock);
+
+    // sched();
+    if(kt->state != KZOMBIE || kt->state != KUNUSED){
+      release(&kt->lock);
+      acquire(&p->lock);
+      sleep(kt, &p->lock);
+      release(&p->lock);
+    }
+    else{
+
+      if(copyout(kt->pcb->pagetable, (uint64)status, (char *)&kt->xstate, sizeof(kt->xstate)) < 0){
+        release(&kt->lock);
+        return -1;
+      }
+      free_thread(kt->chan);
+      // release(&calling_thread->lock);
+
+      return 0;
+    }
+
+  }
+  return 0;
+  
+
+}
+
+
+
+
+
+
 

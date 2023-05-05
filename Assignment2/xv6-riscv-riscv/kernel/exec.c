@@ -19,6 +19,26 @@ int flags2perm(int flags)
     return perm;
 }
 
+void wait_for_all_process_kthreads_to_be_terminated(struct proc* p, struct kthread* kt){
+  for(;;){
+    struct kthread* cur;
+    for(cur= p->kthread; cur < p->kthread+NKT; cur++){
+      acquire(&cur->lock);
+      if(cur->state != KZOMBIE && cur->state != KUNUSED && cur->tid != mykthread()->tid){
+        int status;
+        release(&cur->lock);
+        kthread_join(cur->tid, &status);
+        cur = p->kthread;
+      }
+      else{
+        release(&cur->lock);
+      }
+    }
+
+    break;
+  }
+}
+
 int
 exec(char *path, char **argv)
 {
@@ -111,6 +131,10 @@ exec(char *path, char **argv)
   if(copyout(pagetable, sp, (char *)ustack, (argc+1)*sizeof(uint64)) < 0)
     goto bad;
 
+  //beyond the point of failure
+  //wait for all other threads of this process to be terminated:
+
+
   // arguments to user main(argc, argv)
   // argc is returned via the system call return
   // value, which goes in a0.
@@ -121,7 +145,12 @@ exec(char *path, char **argv)
     if(*s == '/')
       last = s+1;
   safestrcpy(p->name, last, sizeof(p->name));
-    
+
+
+  //beyond the point of failure
+  //wait for all other threads of this process to be terminated:
+  wait_for_all_process_kthreads_to_be_terminated(p, kt);
+
   // Commit to the user image.
   oldpagetable = p->pagetable;
   p->pagetable = pagetable;

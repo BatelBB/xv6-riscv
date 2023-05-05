@@ -202,3 +202,7 @@ struct kthread* alloc_thread(struct proc *p);
 void free_thread(struct kthread* kt);
 struct trapframe *get_kthread_trapframe(struct proc *p, struct kthread *kt);
 
+int kthread_create( void *(*start_func)(), void *stack, uint stack_size);
+int kthread_kill(int ktid);
+void kthread_exit(int status);
+int kthread_join(int ktid, int *status);
