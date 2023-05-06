@@ -1,5 +1,5 @@
 #define NPROC        64  // maximum number of processes
-#define NKT           1  // maximum number of kernel threads
+#define NKT           5  // maximum number of kernel threads
 #define NCPU          8  // maximum number of CPUs
 #define NOFILE       16  // open files per process
 #define NFILE       100  // open files per system
@@ -13,3 +13,4 @@
 #define FSSIZE       2000  // size of file system in blocks
 #define MAXPATH      128   // maximum file path name
 #define K_STACK_SIZE 4000   // stack size for kthread_create
+#define MAX_STACK_SIZE 4000

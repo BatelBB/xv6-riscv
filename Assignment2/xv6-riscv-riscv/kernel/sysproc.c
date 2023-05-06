@@ -94,7 +94,7 @@ sys_uptime(void)
 uint64
 sys_kthread_id(void)
 {
-  return mykthread()->tid;
+  return kthread_id();
 }
 
 uint64

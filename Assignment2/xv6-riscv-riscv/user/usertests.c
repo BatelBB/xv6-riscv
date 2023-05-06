@@ -20,7 +20,6 @@
 //
 
 #define BUFSZ  ((MAXOPBLOCKS+2)*BSIZE)
-#define MAX_STACK_SIZE 4000
 
 char buf[BUFSZ];
 
@@ -2633,16 +2632,16 @@ void klttest()
   uint64 stack_b = (uint64)malloc(MAX_STACK_SIZE);
 
   int kt_a = kthread_create((void *(*)())kthread_start_func, stack_a, MAX_STACK_SIZE);
+  
   if(kt_a <= 0){
     printf("kthread_create failed\n");
     exit(1);
   }
   int kt_b = kthread_create((void *(*)())kthread_start_func, stack_b, MAX_STACK_SIZE);
-  if(kt_a <= 0){
+  if(kt_b <= 0){
     printf("kthread_create failed\n");
     exit(1);
   }
-
   int joined = kthread_join(kt_a, 0);
   if(joined != 0){
     printf("kthread_join failed\n");

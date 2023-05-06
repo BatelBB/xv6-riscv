@@ -139,6 +139,7 @@ allocproc(void)
 found:
   p->pid = allocpid();
   p->state = USED;
+  
 
   // Allocate a trapframe page.
   if((p->base_trapframes = (struct trapframe *)kalloc()) == 0){
@@ -427,10 +428,15 @@ exit(int status)
 
   struct kthread* kt;
   for(kt = p->kthread; kt < p->kthread + NKT; kt++){
-    acquire(&kt->lock);
-    kt->state = KZOMBIE;
-    release(&kt->lock);
+    if(kt->state != KRUNNING){
+      acquire(&kt->lock);
+      kt->state = KZOMBIE;
+      release(&kt->lock);
+    }
   }
+  mykthread()->state = KZOMBIE;
+  
+
   release(&p->lock);        //check  
 
   release(&wait_lock);
@@ -615,8 +621,6 @@ forkret(void)
 void
 sleep(void *chan, struct spinlock *lk)
 {
-  
-
   // struct proc *p = myproc();
   struct kthread* kt = mykthread();
   
@@ -660,12 +664,12 @@ wakeup(void *chan)
       for(kt = p->kthread; kt < p->kthread + NKT; kt++){
         if(kt != mykthread()){
 
-          acquire(&kt->lock);
 
           if(kt->state == KSLEEPING && kt->chan == chan){
+            acquire(&kt->lock);
             kt->state = KRUNNABLE;
+            release(&kt->lock);
           }
-          release(&kt->lock);
         }
       }
 
@@ -680,9 +684,7 @@ wakeup(void *chan)
 int
 kill(int pid)
 {
-
   struct proc *p;
-
   for(p = proc; p < &proc[NPROC]; p++){
     acquire(&p->lock);
     if(p->pid == pid){
