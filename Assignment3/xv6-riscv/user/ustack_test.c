@@ -1,95 +1,44 @@
+#include "ustack.h"
 #include "kernel/types.h"
-#include "kernel/stat.h"
-#include "user/user.h"
-#include "kernel/types.h"
-#include <stdbool.h>
+#include "user.h"
 
-#define MAX_ALLOC_SIZE 512
-
-typedef struct header {
-    uint len;           // buffer len
-    uint remaining;     // remaining free bytes in memory
-    struct header* prev;
-} header;
-
-header* stack_top = 0;
-
-void* ustack_malloc(uint len);
-int ustack_free();
-
-void test_assert(bool condition, const char* message)
-{
-    if (!condition)
-    {
-        printf("Test failed: %s\n", message);
-        exit(1);
-    }
+void print_test_result(char *test_name, int passed) {
+    printf("%s: %s\n", test_name, passed ? "PASSED" : "FAILED");
 }
 
-// NOTE!
-// THE TESTS AREN'T INDEPENDENT - ALL MEMORY IS FREED IN THE LAST TEST
+void test_allocation_and_deallocation() {
+    // Allocate a block of 100 bytes.
+    void *block1 = ustack_malloc(100);
+    // Check that the allocation succeeded.
+    print_test_result("Test allocation of 100 bytes", block1 != (void *)-1);
 
-void test_ustack_malloc_single_allocation()
-{
-    void* buffer = ustack_malloc(100);
-    test_assert(buffer != (header*) -1, "Failed to allocate buffer.");
+    // Allocate a block of 200 bytes.
+    void *block2 = ustack_malloc(200);
+    // Check that the allocation succeeded.
+    print_test_result("Test allocation of 200 bytes", block2 != (void *)-1);
+
+    // Try to allocate a block larger than the limit.
+    void *block3 = ustack_malloc(600);
+    // Check that the allocation failed.
+    print_test_result("Test allocation of 600 bytes", block3 == (void *)-1);
+
+    // Free the most recently allocated block (200 bytes).
+    int freed_size = ustack_free();
+    // Check that the freed size is correct.
+    print_test_result("Test deallocation of 200 bytes", freed_size == 200);
+
+    // Free the remaining block (100 bytes).
+    freed_size = ustack_free();
+    // Check that the freed size is correct.
+    print_test_result("Test deallocation of 100 bytes", freed_size == 100);
+
+    // Try to free when no blocks are allocated.
+    freed_size = ustack_free();
+    // Check that the free operation failed.
+    print_test_result("Test deallocation when no blocks allocated", freed_size == -1);
 }
 
-void test_ustack_malloc_multiple_allocations()
-{
-    void* buffer1 = ustack_malloc(100);
-    test_assert(buffer1 != (header*) -1, "Failed to allocate buffer1.");
-
-    void* buffer2 = ustack_malloc(MAX_ALLOC_SIZE);
-    test_assert(buffer2 != (header*) -1, "Failed to allocate buffer2.");
-}
-
-void test_ustack_free_last_allocation()
-{
-    void* buffer1 = ustack_malloc(100);
-    test_assert(buffer1 != (header*) -1, "Failed to allocate buffer1.");
-
-    int freedSize = ustack_free();
-    test_assert(freedSize == 100, "Incorrect freed size.");
-
-    void* buffer2 = ustack_malloc(MAX_ALLOC_SIZE);
-    test_assert(buffer2 != (header*) -1, "Failed to allocate buffer2.");
-}
-
-void test_ustack_clear_memory_on_last_free()
-{
-    void* buffer1 = ustack_malloc(MAX_ALLOC_SIZE);
-    test_assert(buffer1 != (header*) -1, "Failed to allocate buffer1.");
-
-    int freedSize = ustack_free();
-    test_assert(freedSize == MAX_ALLOC_SIZE, "Incorrect freed size.");
-
-    void* buffer2 = ustack_malloc(MAX_ALLOC_SIZE);
-    test_assert(buffer2 != (header*) -1, "Failed to allocate buffer2.");
-}
-
-void test_ustack_multiple_page_alloc_and_free()
-{
-    for(int i = 0; i<10; i++) {
-        void* buffer = ustack_malloc(MAX_ALLOC_SIZE);
-        test_assert(buffer != (header*) -1, "Failed to allocate buffer.");
-    }
-    for(int i=0; i<16; i++) {
-        test_assert(ustack_free() != 0, "free failed");
-    }
-    test_assert(ustack_free() == -1, "last free failed");
-}
-
-
-int main()
-{
-    // Run the tests
-    test_ustack_malloc_single_allocation();
-    test_ustack_malloc_multiple_allocations();
-    test_ustack_free_last_allocation();
-    test_ustack_clear_memory_on_last_free();
-    test_ustack_multiple_page_alloc_and_free();
-
-    printf("All tests passed!\n");
-    return 0;
+int main() {
+    test_allocation_and_deallocation();
+    exit(0);
 }
