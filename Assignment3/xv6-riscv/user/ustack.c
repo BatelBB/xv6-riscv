@@ -1,74 +1,59 @@
 #include "ustack.h"
 
-struct header{
-  struct header *prev;
-  uint size;
-  void* start;
+struct header {
+    struct header *prev;
+    uint size;
 };
 
 typedef struct header Header;
 
-uint page_top = 0;
-uint stack_last_addr = 0;
-Header* cur = 0;
+Header *head = 0;
+void *page_top = 0;
 
-Header* get_more(){
-    Header *new = (Header*)sbrk(PGSIZE);
-    if(new == (void*)-1){
-        return (Header*)-1;
+Header *get_more(uint size) {
+    Header *new_block = (Header *)sbrk(size);
+    if (new_block == (void *)-1) {
+        return (Header *)-1;
     }
-    page_top = PGROUNDUP((uint64)cur->start);
-    return new;
+    page_top = sbrk(0); //returns a pointer to the end of the current data segment
+    return new_block;
 }
 
-void * ustack_malloc(uint len){
-    if (len > 512){
+void *ustack_malloc(uint len) {
+    if (len > 512) 
         return (void *)-1;
+
+    uint total_size = sizeof(Header) + len; // sizeof(Header) = (uint64)cur->start + (uint)cur->size
+    Header *new_block = 0;
+    if ((char *)sbrk(0) + total_size > (char *)page_top) {
+        new_block = get_more(total_size);
+    } else {
+        new_block = (Header *)sbrk(total_size);
     }
 
-    if (stack_last_addr == 0){
-        cur = get_more();
-        cur->prev = 0;
-        cur->size = 0;
-        cur->start = (void*)(cur + 1);
-    }
+    if (new_block == (void *)-1) return (void *)-1;
 
-    Header* next;
-    if((uint64)cur->start + (uint)cur->size + (uint)len > (uint)page_top){
-        next = get_more();
-    }
-    else{
-        next = (Header*)(cur->start + cur->size); 
-    }
+    new_block->prev = head;
+    new_block->size = len;
+    head = new_block;
 
-    next->prev = cur;
-    next->start = (void*)(next + 1);
-    next->size = len;
-    cur = next;
-    
-    return (void*)cur->start;
-
+    return (void *)(new_block + 1);
 }
 
+int ustack_free(void) {
+	//check invalid
+    if (head == 0)
+     return -1;
 
-int ustack_free(void){
-    //check invalid
-    if (cur == 0){
-        return -1;
+	//delete cur and set cur to cur.prev
+    uint block_size = head->size;
+    head = head->prev;
+
+	//check if need to change page_top
+    if ((char *)sbrk(0) - (block_size + sizeof(Header)) <= (char *)page_top - PGSIZE) {
+        sbrk(-PGSIZE);
+        page_top = sbrk(0);
     }
 
-    //delete cur and set cur to cur.prev
-    int ret = cur->size;
-    cur = cur->prev;
-
-    //check if need to change page_top
-    if(PGROUNDUP((uint64)cur) == PGROUNDDOWN(page_top)){
-        if(sbrk(-PGSIZE) == (char*)-1){
-            return -1;
-        }
-
-        page_top = PGROUNDUP((uint64)cur);
-    }
-
-    return ret;
+    return block_size;
 }
