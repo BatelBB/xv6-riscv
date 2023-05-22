@@ -50,8 +50,10 @@ int ustack_free(void) {
     head = head->prev;
 
 	//check if need to change page_top
-    if ((char *)sbrk(0) - (block_size + sizeof(Header)) <= (char *)page_top - PGSIZE) {
-        sbrk(-PGSIZE);
+    if (PGROUNDUP((uint64)(page_top - (block_size + sizeof(Header)))) <= PGROUNDDOWN((uint64)page_top)) {
+        if(sbrk(-PGSIZE) == (char*)-1){
+            return -1;
+        }
         page_top = sbrk(0);
     }
 
