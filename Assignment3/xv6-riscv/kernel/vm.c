@@ -164,6 +164,8 @@ mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
   return 0;
 }
 
+
+
 // Remove npages of mappings starting from va. va must be
 // page-aligned. The mappings must exist.
 // Optionally free the physical memory.
@@ -179,8 +181,9 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
   for(a = va; a < va + npages*PGSIZE; a += PGSIZE){
     if((pte = walk(pagetable, a, 0)) == 0)
       panic("uvmunmap: walk");
-    if((*pte & PTE_V) == 0)
+    if((*pte & PTE_V) == 0){
       panic("uvmunmap: not mapped");
+    }
     if(PTE_FLAGS(*pte) == PTE_V)
       panic("uvmunmap: not a leaf");
     if(do_free){
@@ -190,6 +193,44 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
     *pte = 0;
   }
 }
+
+void
+uvmunmap2(pagetable_t pagetable, uint64 va, uint64 npages, int do_free, struct proc* p)
+{
+  uint64 a;
+  pte_t *pte;
+
+  // printf("pagetable in uvmunmap2: %p\n", pagetable);
+
+  if((va % PGSIZE) != 0)
+    panic("uvmunmap: not aligned");
+
+  for(a = va; a < va + npages*PGSIZE; a += PGSIZE){
+    // swap_in(a, p);
+    if((pte = walk(pagetable, a, 0)) == 0)
+      panic("uvmunmap: walk");
+    if((*pte & PTE_V) == 0){
+      // printf("a: %d\n*pte: %d\nisvalid: %d", a, *pte, (*pte & PTE_V));
+      // printf("%p\n", a);
+      if((*pte & PTE_PG)){
+        *pte = 0;
+      }
+      else{
+        panic("uvmunmap2: not mapped");
+      }
+    }
+    if(PTE_FLAGS(*pte) == PTE_V)
+      panic("uvmunma2p: not a leaf");
+    if(do_free && *pte != 0){
+      uint64 pa = PTE2PA(*pte);
+      kfree((void*)pa);
+    }
+    remove_page(a, p);
+    *pte = 0;
+  }
+}
+
+
 
 // create an empty user page table.
 // returns 0 if out of memory.
@@ -244,6 +285,8 @@ uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz, int xperm)
       uvmdealloc(pagetable, a, oldsz);
       return 0;
     }
+
+    add_page(a, (uint64)mem);
   }
   return newsz;
 }
@@ -289,10 +332,10 @@ freewalk(pagetable_t pagetable)
 // Free user memory pages,
 // then free page-table pages.
 void
-uvmfree(pagetable_t pagetable, uint64 sz)
+uvmfree(pagetable_t pagetable, uint64 sz, struct proc* p)
 {
   if(sz > 0)
-    uvmunmap(pagetable, 0, PGROUNDUP(sz)/PGSIZE, 1);
+    uvmunmap2(pagetable, 0, PGROUNDUP(sz)/PGSIZE, 1, p);
   freewalk(pagetable);
 }
 

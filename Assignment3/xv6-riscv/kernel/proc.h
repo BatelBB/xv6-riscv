@@ -26,6 +26,16 @@ struct cpu {
   int intena;                 // Were interrupts enabled before push_off()?
 };
 
+struct pages_meta {
+  int used;
+  uint swapped;
+  uint64 offset;
+  uint64 pa;
+  uint64 va;
+  int pte_flags;
+  pte_t *pte;
+};
+
 extern struct cpu cpus[NCPU];
 
 // per-process data for the trap handling code in trampoline.S.
@@ -106,4 +116,7 @@ struct proc {
   char name[16];               // Process name (debugging)
 
   struct file *swapFile;
+  struct pages_meta pages[MAX_TOTAL_PAGES];
 };
+
+

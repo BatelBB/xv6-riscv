@@ -43,6 +43,17 @@ proc_mapstacks(pagetable_t kpgtbl)
   }
 }
 
+void init_page_meta(struct proc *p){
+  int i;
+  for(i = 0; i < MAX_TOTAL_PAGES; i++){
+    p->pages[i].offset = i * PGSIZE;
+    p->pages[i].pa = 0;
+    p->pages[i].va = 0;
+    p->pages[i].used = 0;
+    p->pages[i].swapped = 0;
+  }
+}
+
 // initialize the proc table.
 void
 procinit(void)
@@ -52,9 +63,9 @@ procinit(void)
   initlock(&pid_lock, "nextpid");
   initlock(&wait_lock, "wait_lock");
   for(p = proc; p < &proc[NPROC]; p++) {
-      initlock(&p->lock, "proc");
-      p->state = UNUSED;
-      p->kstack = KSTACK((int) (p - proc));
+    initlock(&p->lock, "proc");
+    p->state = UNUSED;
+    p->kstack = KSTACK((int) (p - proc));
   }
 }
 
@@ -125,6 +136,10 @@ found:
   p->pid = allocpid();
   p->state = USED;
 
+  // createSwapFile(p);
+  init_page_meta(p);
+
+
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
     freeproc(p);
@@ -159,7 +174,7 @@ freeproc(struct proc *p)
     kfree((void*)p->trapframe);
   p->trapframe = 0;
   if(p->pagetable)
-    proc_freepagetable(p->pagetable, p->sz);
+    proc_freepagetable(p->pagetable, p->sz, p);
   p->pagetable = 0;
   p->sz = 0;
   p->pid = 0;
@@ -189,7 +204,7 @@ proc_pagetable(struct proc *p)
   // to/from user space, so not PTE_U.
   if(mappages(pagetable, TRAMPOLINE, PGSIZE,
               (uint64)trampoline, PTE_R | PTE_X) < 0){
-    uvmfree(pagetable, 0);
+    uvmfree(pagetable, 0, p);
     return 0;
   }
 
@@ -198,7 +213,7 @@ proc_pagetable(struct proc *p)
   if(mappages(pagetable, TRAPFRAME, PGSIZE,
               (uint64)(p->trapframe), PTE_R | PTE_W) < 0){
     uvmunmap(pagetable, TRAMPOLINE, 1, 0);
-    uvmfree(pagetable, 0);
+    uvmfree(pagetable, 0, p);
     return 0;
   }
 
@@ -208,11 +223,11 @@ proc_pagetable(struct proc *p)
 // Free a process's page table, and free the
 // physical memory it refers to.
 void
-proc_freepagetable(pagetable_t pagetable, uint64 sz)
+proc_freepagetable(pagetable_t pagetable, uint64 sz, struct proc *p)
 {
   uvmunmap(pagetable, TRAMPOLINE, 1, 0);
   uvmunmap(pagetable, TRAPFRAME, 1, 0);
-  uvmfree(pagetable, sz);
+  uvmfree(pagetable, sz, p);
 }
 
 // a user program that calls exec("/init")
@@ -314,6 +329,11 @@ fork(void)
 
   release(&np->lock);
 
+  createSwapFile(np);
+  if(p->pid > 2){
+    copy_page_meta(p, np);
+  }
+
   acquire(&wait_lock);
   np->parent = p;
   release(&wait_lock);
@@ -321,6 +341,7 @@ fork(void)
   acquire(&np->lock);
   np->state = RUNNABLE;
   release(&np->lock);
+
 
   return pid;
 }
@@ -350,6 +371,8 @@ exit(int status)
 
   if(p == initproc)
     panic("init exiting");
+
+  removeSwapFile(p);
 
   // Close all open files.
   for(int fd = 0; fd < NOFILE; fd++){
@@ -680,4 +703,268 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+
+
+void remove_page(uint64 va, struct proc* p){
+  struct pages_meta* s;
+  if (p->pid > 2){
+    // printf("remove: %p\n", va);
+
+    for(s = p->pages; s < p->pages + MAX_TOTAL_PAGES; s++){
+      if (s->va == va){
+        s->pa = 0;
+        s->va = 0;
+        s->swapped = 0;
+        s->used = 0;
+      }
+    }
+
+  }
+}
+
+// void remove_all_pages(){
+//   struct pages_meta* s;
+//   struct proc* p = myproc();
+//   if (p->pid > 3){
+//     for(s = p->pages; s < p->pages + MAX_TOTAL_PAGES; s++){
+//       free(s);
+//     }
+
+//   }
+// }
+
+int swap_psyc(struct proc* p){    //swap from physical to file
+  if(p->pid < 3){
+    return 0;
+  }
+
+  struct pages_meta* s;
+  for(s = p->pages; s < p->pages + MAX_TOTAL_PAGES; s++){
+
+    pte_t *pte = walk(p->pagetable, s->va, 0);
+    if(s->used && !s->swapped && (*pte & PTE_U) != 0){
+      //we found a page to swap to file
+      if (writeToSwapFile(p, (char *)s->pa, s->offset, PGSIZE) == -1){
+        printf("error write to file\n");
+        exit(-1);
+      }
+
+      s->swapped = 1;
+      kfree((void*)s->pa);    //freeing the page from pyisical memmory
+      s->pa = 0;
+      s->pte_flags = PTE_FLAGS(*pte);
+
+      *pte |= PTE_PG; 
+      *pte &= ~PTE_V; 
+
+      // printf("swapped out va: %p\n", s->va);
+      return 0;
+    }
+  }
+
+  printf("no files to write to file\n");
+  return -1;
+}
+
+
+
+int count_psyc(struct proc* p){
+  struct pages_meta* s;
+  int counter = 0;
+  for(s = p->pages; s < p->pages + MAX_TOTAL_PAGES; s++){
+    if(!s->swapped && s->used){
+      counter ++;
+    }
+  }
+
+  return counter;
+}
+
+struct pages_meta* get_free_slot(struct proc* p){
+  struct pages_meta* s;
+  for(s = p->pages; s < p->pages + MAX_TOTAL_PAGES; s++){
+    if (!s->used){
+      return s;
+    }
+  }
+  return (struct pages_meta*)0;
+}
+
+int add_page(uint64 va, uint64 pa){
+  // printf("add_page\n");
+  //find open spot in the array
+  //if no open slot in array delete 1 and swap for new one
+
+  struct proc* p = myproc();
+  if(p->pid < 3){
+    return 0;
+  }
+
+  if(p->swapFile == 0){
+    createSwapFile(p);
+  }
+
+  // acquire(&p->lock);
+
+  struct pages_meta* new_page = get_free_slot(p);
+  if (new_page == 0){
+    // release(&p->lock);
+    printf("max pages exeeded");
+    exit(-1);
+  }
+
+  //check if phyisical mem holds less than 16 pages if not need gto swap 1
+  if (count_psyc(p) == MAX_PSYC_PAGES){
+    swap_psyc(p);
+  } 
+
+  new_page->va = va;
+  new_page->pa = pa;
+  new_page->used = 1;
+  new_page->swapped = 0;
+
+  new_page->pte = walk(p->pagetable, va, 0);
+  // printf("va: %p\n", va);
+
+  // release(&p->lock);
+  return 0;
+}
+
+// //return 0 if page has been swapped back in
+// //return -1 in case the page is already in physical memmory
+// int swap_in(uint64 va){    //swap from file to phisical
+//   struct pages_meta* s;
+//   struct proc* p = myproc();
+//   for(s = p->pages; s < p->pages + MAX_TOTAL_PAGES; s++){
+//     if(s->swapped && s->va == va){  //chack if valid
+//       uint64 addr = (uint64)kalloc();
+//       if (readFromSwapFile(p, (char*)addr, s->offset, PGSIZE) == -1){
+//         printf("failed resing ffrom swap file\n");
+//         return -1;
+//       }
+//       pte_t *pte = walk(p->pagetable, va, PGSIZE);
+//       // if (mappages(p->pagetable, va, PGSIZE, s->pa, s->pte_flags) == -1){
+//       //   printf("failed mappages\n");
+//       //   return -1;
+//       // }
+
+//       *pte &= ~PTE_PG; 
+//       *pte |= PTE_V; 
+//       s->pa = addr;
+//       s->swapped = 0;
+//       return 0;
+//     }
+//   }
+//   return -1;
+// }
+
+int swap_in(uint64 va, struct proc* p) {
+  struct pages_meta* s;
+
+  // printf("pagetable in swapin: %p\n", p->pagetable);
+
+  for(s = p->pages; s < p->pages + MAX_TOTAL_PAGES; s++){
+    if(s->va == va){
+      if(!s->swapped){
+        // Page is already in memory.
+        return -1;
+      }
+      
+      // Allocate a new physical page.
+      void* addr = kalloc();
+      if (addr == 0){
+        printf("failed allocating physical page\n");
+        return -1;
+      }
+      
+      // Read data from the swap file into the new physical page.
+      if (readFromSwapFile(p, (char*)addr, s->offset, PGSIZE) == -1){
+        printf("failed reading from swap file\n");
+        kfree(addr); // free the allocated page
+        return -1;
+      }
+      
+      // Update the page table entry.
+      pte_t *pte = walk(p->pagetable, va, 0); // no need to create a new PTE
+      if (pte == 0) {
+        printf("failed walking pagetable\n");
+        kfree(addr); // free the allocated page
+        return -1;
+      }
+      
+      // mappages(p->pagetable, s->va, PGSIZE, s->pa, PTE_FLAGS(*pte));
+      // *pte = 0;
+      *pte = PA2PTE(addr) | s->pte_flags | PTE_V; // set the physical address and valid bit, preserving the other flags
+      // 
+
+      // printf("after swap: isvalid: %d\npte: %d\n", (*pte & PTE_V), *pte);
+      // printf("saved pte: %d\n", (*(s->pte) & PTE_V), *(s->pte));
+      // Update the metadata.
+      s->pa = (uint64)addr;
+      s->swapped = 0;
+
+      // printf("swapped_in: %p\n", s->va);
+      
+      return 0;
+    }
+  }
+  
+  // Page not found.
+  return -1;
+}
+
+
+int is_swapped(uint64 va){
+  struct pages_meta* s;
+  struct proc* p = myproc();
+  for(s = p->pages; s < p->pages + MAX_TOTAL_PAGES; s++){
+    if(s->swapped && s->va == va){ 
+      return 1;
+    }
+  }
+  return 0;
+}
+
+int copy_page_meta(struct proc *p, struct proc *np){
+  int i;
+  for(i = 0; i < MAX_TOTAL_PAGES; i++){
+    struct pages_meta s = p->pages[i];
+    struct pages_meta s2 = np->pages[i];
+
+    //copy the file
+    char *buffer = (char*)kalloc();
+    int read_size = readFromSwapFile(p, buffer, s.offset, PGSIZE);
+    if(read_size == -1)
+      return 0;
+    
+    kfree((void*)buffer);
+
+    if(writeToSwapFile(np, buffer, s2.offset, read_size) == -1)
+      return -1;
+
+    //copy values
+    s2.used = s.used;
+    s2.swapped = s.swapped;
+    s2.offset = s.offset;
+    s2.pa = s.pa;
+    s2.va = s.va;
+    s2.pte_flags = s.pte_flags;
+
+
+  }
+  return 0;
+}
+
+int is_paging(){
+  return myproc()->pid > 2;
+}
+
+int cur_pid(){
+  return myproc()->pid;
+}
+
+void* p_pagetable(struct proc* p){
+  return p->pagetable;
 }
