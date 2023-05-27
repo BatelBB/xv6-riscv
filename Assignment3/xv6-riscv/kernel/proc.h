@@ -34,6 +34,8 @@ struct pages_meta {
   uint64 va;
   int pte_flags;
   pte_t *pte;
+
+  uint64 counter;
 };
 
 extern struct cpu cpus[NCPU];

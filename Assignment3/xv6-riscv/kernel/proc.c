@@ -490,6 +490,8 @@ scheduler(void)
         c->proc = 0;
       }
       release(&p->lock);
+
+      update_nfua(p);
     }
   }
 }
@@ -832,33 +834,7 @@ int add_page(uint64 va, uint64 pa){
   return 0;
 }
 
-// //return 0 if page has been swapped back in
-// //return -1 in case the page is already in physical memmory
-// int swap_in(uint64 va){    //swap from file to phisical
-//   struct pages_meta* s;
-//   struct proc* p = myproc();
-//   for(s = p->pages; s < p->pages + MAX_TOTAL_PAGES; s++){
-//     if(s->swapped && s->va == va){  //chack if valid
-//       uint64 addr = (uint64)kalloc();
-//       if (readFromSwapFile(p, (char*)addr, s->offset, PGSIZE) == -1){
-//         printf("failed resing ffrom swap file\n");
-//         return -1;
-//       }
-//       pte_t *pte = walk(p->pagetable, va, PGSIZE);
-//       // if (mappages(p->pagetable, va, PGSIZE, s->pa, s->pte_flags) == -1){
-//       //   printf("failed mappages\n");
-//       //   return -1;
-//       // }
 
-//       *pte &= ~PTE_PG; 
-//       *pte |= PTE_V; 
-//       s->pa = addr;
-//       s->swapped = 0;
-//       return 0;
-//     }
-//   }
-//   return -1;
-// }
 
 int swap_in(uint64 va, struct proc* p) {
   struct pages_meta* s;
@@ -870,6 +846,11 @@ int swap_in(uint64 va, struct proc* p) {
       if(!s->swapped){
         // Page is already in memory.
         return -1;
+      }
+
+      //check if theres already 16 pages in physical mem
+      if(count_psyc(p) == MAX_PSYC_PAGES){
+        swap_psyc(p);
       }
       
       // Allocate a new physical page.
@@ -967,4 +948,21 @@ int cur_pid(){
 
 void* p_pagetable(struct proc* p){
   return p->pagetable;
+}
+
+void update_nfua(struct proc* p){
+  struct pages_meta* s;
+  for(s = p->pages; s < p->pages + MAX_TOTAL_PAGES; s++){
+    if(s->used && !(s->swapped)){
+      pte_t *pte = walk(p->pagetable, s->va, 0);
+      s->counter = s->counter >> 1;
+      if((*pte) & PTE_A){
+        s->counter |= 0x80000000;
+        (*pte) &= ~PTE_A;
+      }
+      else{
+        s->counter &= 0;
+      }
+    }
+  }
 }

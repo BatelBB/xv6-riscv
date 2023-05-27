@@ -205,3 +205,4 @@ int copy_page_meta(struct proc *p, struct proc *np);
 int is_paging();
 int cur_pid();
 void* p_pagetable(struct proc* p);
+void update_nfua(struct proc* p);
