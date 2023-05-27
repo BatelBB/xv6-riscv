@@ -68,8 +68,8 @@ usertrap(void)
   } else if((which_dev = devintr()) != 0){
     // ok
   }else if (r_scause() == 13 || r_scause() == 15){
-    uint64 faulting_address = r_stval();
-    int ret = swap_in(faulting_address, myproc());
+    uint64 faulting_address_page = PGROUNDDOWN(r_stval());
+    int ret = swap_in(faulting_address_page, p);
     if(ret == -1){
       //segfault:
       printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
