@@ -36,6 +36,7 @@ struct pages_meta {
   pte_t *pte;
 
   uint64 counter;
+  uint64 counter_lapa;
 };
 
 extern struct cpu cpus[NCPU];
@@ -119,6 +120,12 @@ struct proc {
 
   struct file *swapFile;
   struct pages_meta pages[MAX_TOTAL_PAGES];
+  int pages_in_file;
+
+  struct pages_meta pages_scfifo_queue[MAX_PSYC_PAGES];
+  int head;
+  int tail;
+  
 };
 
 
