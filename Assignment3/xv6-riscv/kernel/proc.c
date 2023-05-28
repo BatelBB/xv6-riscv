@@ -830,16 +830,15 @@ struct pages_meta *swap_scfifo(struct proc *p)
 }
 
 struct pages_meta *get_swap_algo(struct proc* p){
-  #if SWAP_ALGO == NFUA
+  #ifdef NFUA
     return swap_nfua(p);
   #endif
-  #if SWAP_ALGO == LAPA
+  #ifdef LAPA
     return swap_lapa(p);
   #endif
   #ifdef SCFIFO
     return swap_scfifo(p);
   #endif
-
   return 0;
 }
 
