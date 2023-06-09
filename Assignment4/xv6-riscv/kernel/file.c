@@ -12,6 +12,7 @@
 #include "file.h"
 #include "stat.h"
 #include "proc.h"
+#include "fcntl.h"
 
 struct devsw devsw[NDEV];
 struct {
@@ -178,5 +179,46 @@ filewrite(struct file *f, uint64 addr, int n)
   }
 
   return ret;
+}
+
+/// @brief changes the offset of an open file descriptor
+/// @param f 
+/// @param offset 
+/// @param whence : 
+/// @return if whence = SEEK_SET && offset == 0: offset = 0
+///         if whence = SEEK_SET && offset > file_size : offset = f_size
+///         if whence = SEEK_CUR && f->off + offset < 0: offset = 0
+int fileseek(struct file *f, int offset, int whence){
+
+  if (f->type != FD_INODE) {
+    return -1;
+  }
+  ilock(f->ip);
+
+  if (whence == SEEK_SET){
+    if (offset < 0){
+      f->off = 0;
+    }
+    else if (offset > f->ip->size){
+      f->off = f->ip->size;
+    }
+    else{
+      f->off = offset;
+    }
+  }
+  else if (whence == SEEK_CUR){
+      if (f->off + offset < 0)
+        f->off = 0;
+      else
+        f->off += offset;
+  }
+  else{
+    iunlock(f->ip);
+    return -1;
+  }
+  
+  iunlock(f->ip);
+
+  return 0;
 }
 
